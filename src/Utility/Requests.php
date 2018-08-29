@@ -52,7 +52,7 @@ class Requests implements RequestsInterface
      * Request fields formatter
      *
      * @param string|array $fields Request fields
-     * @return string
+     * @return string|null
      */
     private static function fields($fields)
     {
@@ -60,7 +60,7 @@ class Requests implements RequestsInterface
             return http_build_query($fields);
         }
 
-        return ltrim($fields, '?');
+        return $fields;
     }
 
     /**
@@ -117,7 +117,7 @@ class Requests implements RequestsInterface
                 break;
             case 'get':
             default:
-                $qs = '?' . $fields;
+                $qs = $fields ? '?' . $fields : '';
                 break;
         }
         switch ($context['proxy_type']) {
