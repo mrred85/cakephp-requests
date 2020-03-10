@@ -8,7 +8,8 @@
  */
 
 namespace App\Utility;
-
+include "RequestsInterface.php";
+use Exception;
 use InvalidArgumentException;
 
 /**
@@ -24,6 +25,14 @@ use InvalidArgumentException;
  */
 class Requests implements RequestsInterface
 {
+    /**
+     * @var array
+     */
+    private static $requestInfo;
+
+    /**
+     * @var array
+     */
     private static $requestResult;
 
     /**
@@ -70,6 +79,7 @@ class Requests implements RequestsInterface
      * @param string $url Request URL
      * @param array $context Request context
      * @return Requests
+     * @throws Exception
      *
      * ### Context values
      * - fields: [a=>b, c=>d] or 'a=b&c=d'
@@ -83,9 +93,11 @@ class Requests implements RequestsInterface
      */
     private static function req(string $method, string $url, array $context = [])
     {
-        $url = filter_var($url, FILTER_VALIDATE_URL, [
-            'flags' => FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_PATH_REQUIRED
-        ]);
+        if (!extension_loaded('curl')) {
+            throw new Exception('Module "cURL" is not available on your web server!');
+        }
+
+        $url = filter_var($url, FILTER_VALIDATE_URL);
         $context = array_merge([
             'fields' => null,
             'user_password' => null,
@@ -120,18 +132,6 @@ class Requests implements RequestsInterface
                 $qs = $fields ? '?' . $fields : '';
                 break;
         }
-        switch ($context['proxy_type']) {
-            case 'socks4':
-                $proxyType = CURLPROXY_SOCKS4;
-                break;
-            case 'socks5':
-                $proxyType = CURLPROXY_SOCKS5;
-                break;
-            case 'http':
-            default:
-                $proxyType = CURLPROXY_HTTP;
-                break;
-        }
         if ($context['user_password']) {
             $options += [
                 CURLOPT_USERPWD => $context['user_password']
@@ -153,9 +153,24 @@ class Requests implements RequestsInterface
             }
         }
         if ($context['proxy']) {
+            switch ($context['proxy_type']) {
+                case 'socks4':
+                    $proxyType = CURLPROXY_SOCKS4;
+                    break;
+                case 'socks5':
+                    $proxyType = CURLPROXY_SOCKS5;
+                    break;
+                case 'http':
+                default:
+                    $proxyType = CURLPROXY_HTTP;
+                    break;
+            }
             $proxy = static::proxy($context['proxy']);
             if ($proxy) {
-                $context['proxy'] = $proxy->proxy;
+                $options += [
+                    CURLOPT_PROXY => $proxy->proxy,
+                    CURLOPT_PROXYTYPE => $proxyType
+                ];
             }
         }
         $options += [
@@ -165,22 +180,19 @@ class Requests implements RequestsInterface
             CURLOPT_HEADER => false,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_PROXY => $context['proxy'],
-            CURLOPT_PROXYTYPE => $proxyType,
             CURLOPT_SSL_VERIFYHOST => (bool)$context['ssl_verify'],
             CURLOPT_SSL_VERIFYPEER => (bool)$context['ssl_verify']
         ];
         $ch = curl_init();
         curl_setopt_array($ch, $options);
         $output = curl_exec($ch);
-        $result = [
+        static::$requestInfo = curl_getinfo($ch);
+        static::$requestResult = [
             'output' => $output,
-            'http_response_code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
             'error_nr' => curl_errno($ch),
             'error_message' => curl_error($ch)
         ];
         curl_close($ch);
-        static::$requestResult = (object)$result;
 
         return new static();
     }
@@ -191,6 +203,7 @@ class Requests implements RequestsInterface
      * @param string $name Request type
      * @param array $arguments Request $url and $context
      * @return Requests
+     * @throws Exception
      */
     public static function __callStatic($name, $arguments)
     {
@@ -199,11 +212,11 @@ class Requests implements RequestsInterface
             throw new InvalidArgumentException('Request type is not valid!');
         }
         $url = null;
-        if (isset($arguments[0]) && !empty($arguments[0]) && is_string($arguments[0])) {
-            $url = (string)trim($arguments[0]);
+        if (!empty($arguments[0]) && is_string($arguments[0])) {
+            $url = trim($arguments[0]);
         }
         $context = [];
-        if (isset($arguments[1]) && !empty($arguments[1]) && is_array($arguments[1])) {
+        if (!empty($arguments[1]) && is_array($arguments[1])) {
             $context = $arguments[1];
         }
         if (!$url) {
@@ -224,28 +237,26 @@ class Requests implements RequestsInterface
      */
     public static function proxy(string $proxyString)
     {
-        $proxyString = filter_var($proxyString, FILTER_VALIDATE_URL, [
-            'flags' => FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_HOST_REQUIRED
-        ]);
+        $proxyString = filter_var($proxyString, FILTER_VALIDATE_URL);
         if ($proxyString) {
             $parts = parse_url($proxyString);
 
             $proxy = $parts['scheme'] . '://';
-            if ($parts['user'] && $parts['pass']) {
+            if (!empty($parts['user']) && !empty($parts['pass'])) {
                 $proxy .= $parts['user'] . ':' . $parts['pass'] . '@';
             }
             $proxy .= $parts['host'];
-            if ($parts['port']) {
+            if (!empty($parts['port'])) {
                 $proxy .= ':' . $parts['port'];
             }
-            $proxy .= DS;
+            $proxy .= '/';
 
             return (object)[
                 'scheme' => $parts['scheme'],
                 'host' => $parts['host'],
-                'port' => $parts['port'],
-                'username' => $parts['user'],
-                'password' => $parts['pass'],
+                'port' => $parts['port'] ?? null,
+                'username' => $parts['user'] ?? null,
+                'password' => $parts['pass'] ?? null,
                 'proxy' => $proxy
             ];
         }
@@ -256,47 +267,67 @@ class Requests implements RequestsInterface
     /**
      * Get request output
      *
-     * @return string|null
+     * @return string|bool
      */
     public function getOutput()
     {
-        return static::$requestResult->output;
+        return static::$requestResult['output'];
     }
 
     /**
      * Get request HTTP response code
      *
-     * @return int|null
+     * @return int
      */
     public function getHttpResponseCode()
     {
-        return (int)static::$requestResult->http_response_code;
+        return (int)static::$requestInfo['http_code'];
+    }
+
+    /**
+     * Total transaction time in seconds for last transfer
+     *
+     * @return float
+     */
+    public function getTotalTime()
+    {
+        return (float)static::$requestInfo['total_time'];
     }
 
     /**
      * Get request error number
      *
-     * @return int|null
+     * @return int
      */
     public function getErrorNumber()
     {
-        return (int)static::$requestResult->error_nr;
+        return (int)static::$requestResult['error_nr'];
     }
 
     /**
      * Get request error message
      *
-     * @return string|null
+     * @return string
      */
     public function getErrorMessage()
     {
-        return static::$requestResult->error_message;
+        return static::$requestResult['error_message'];
+    }
+
+    /**
+     * Get textual representation of error code
+     *
+     * @return string
+     */
+    public function getErrorCodeMessage()
+    {
+        return curl_strerror(static::getErrorNumber());
     }
 
     /**
      * All request Information. For debug purposes
      *
-     * @return mixed
+     * @return array
      */
     //@codingStandardsIgnoreStart
     public function __getAll()

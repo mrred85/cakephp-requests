@@ -10,7 +10,22 @@ Requests is a replacement for `file_get_contents` function for external urls and
 
 ### Requirements
 - PHP >= 7.1.x
-- CakePHP >= 3.5.x
+- cURL extension enabled
+- CakePHP >= 3.6.x
+
+### Composer
+
+Add following statement in `require` area.
+
+```json
+{
+    // ...
+    "require": {
+        "ext-curl": "*",
+    }
+    // ...
+}
+```
 
 ## Allowed methods
 ```php
