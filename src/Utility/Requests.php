@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Requests Utility
  *
@@ -8,7 +9,7 @@
  */
 
 namespace App\Utility;
-include "RequestsInterface.php";
+
 use Exception;
 use InvalidArgumentException;
 
