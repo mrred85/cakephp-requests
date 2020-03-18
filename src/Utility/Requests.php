@@ -62,15 +62,11 @@ class Requests implements RequestsInterface
      * Request fields formatter
      *
      * @param string|array $fields Request fields
-     * @return string|null
+     * @return string
      */
     private static function fields($fields)
     {
-        if (is_array($fields)) {
-            return http_build_query($fields);
-        }
-
-        return $fields;
+        return trim(is_array($fields) ? http_build_query($fields) : $fields);
     }
 
     /**
@@ -130,7 +126,7 @@ class Requests implements RequestsInterface
                 break;
             case 'get':
             default:
-                $qs = $fields ? '?' . $fields : '';
+                $qs = ($fields ? '?' . $fields : '');
                 break;
         }
         if ($context['user_password']) {
@@ -140,16 +136,16 @@ class Requests implements RequestsInterface
         }
         if ($context['connection_timeout']) {
             $options += [
-                CURLOPT_CONNECTTIMEOUT => $context['connection_timeout']
+                CURLOPT_CONNECTTIMEOUT => (int)$context['connection_timeout']
             ];
         }
         if ($context['timeout']) {
             $options += [
-                CURLOPT_TIMEOUT => $context['timeout']
+                CURLOPT_TIMEOUT => (int)$context['timeout']
             ];
             if (!$context['connection_timeout']) {
                 $options += [
-                    CURLOPT_CONNECTTIMEOUT => $context['timeout'] / 2
+                    CURLOPT_CONNECTTIMEOUT => (int)$context['timeout'] / 2
                 ];
             }
         }
