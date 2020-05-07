@@ -29,12 +29,12 @@ class Requests implements RequestsInterface
     /**
      * @var array
      */
-    private static $requestInfo;
+    private static $requestInfo = [];
 
     /**
      * @var array
      */
-    private static $requestResult;
+    private static $requestResult = [];
 
     /**
      * Create headers array
@@ -42,7 +42,7 @@ class Requests implements RequestsInterface
      * @param array $headers Headers values
      * @return array
      */
-    private static function headers(array $headers)
+    private static function headers(array $headers): array
     {
         $result = [];
         foreach ($headers as $k => $value) {
@@ -64,7 +64,7 @@ class Requests implements RequestsInterface
      * @param string|array $fields Request fields
      * @return string
      */
-    private static function fields($fields)
+    private static function fields($fields): string
     {
         return trim(is_array($fields) ? http_build_query($fields) : $fields);
     }
@@ -202,7 +202,7 @@ class Requests implements RequestsInterface
      * @return Requests
      * @throws Exception
      */
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic(string $name, array $arguments)
     {
         $allowedTypes = ['get', 'post', 'put', 'patch', 'delete'];
         if (!in_array(strtolower($name), $allowedTypes)) {
@@ -276,7 +276,7 @@ class Requests implements RequestsInterface
      *
      * @return int
      */
-    public function getHttpResponseCode()
+    public function getHttpResponseCode(): int
     {
         return (int)static::$requestInfo['http_code'];
     }
@@ -286,7 +286,7 @@ class Requests implements RequestsInterface
      *
      * @return float
      */
-    public function getTotalTime()
+    public function getTotalTime(): float
     {
         return (float)static::$requestInfo['total_time'];
     }
@@ -296,9 +296,9 @@ class Requests implements RequestsInterface
      *
      * @return int
      */
-    public function getErrorNumber()
+    public function getErrorNumber(): int
     {
-        return (int)static::$requestResult['error_nr'];
+        return static::$requestResult['error_nr'];
     }
 
     /**
@@ -306,7 +306,7 @@ class Requests implements RequestsInterface
      *
      * @return string
      */
-    public function getErrorMessage()
+    public function getErrorMessage(): string
     {
         return static::$requestResult['error_message'];
     }
@@ -316,7 +316,7 @@ class Requests implements RequestsInterface
      *
      * @return string
      */
-    public function getErrorCodeMessage()
+    public function getErrorCodeMessage(): string
     {
         return curl_strerror(static::getErrorNumber());
     }
@@ -327,9 +327,12 @@ class Requests implements RequestsInterface
      * @return array
      */
     //@codingStandardsIgnoreStart
-    public function __getAll()
+    public function __getAll(): array
     {
-        return static::$requestResult;
+        return [
+            'request_result' => static::$requestResult,
+            'request_info' => static::$requestInfo
+        ];
     }
     //@codingStandardsIgnoreEnd
 }

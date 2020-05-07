@@ -24,33 +24,33 @@ interface RequestsInterface
      *
      * @return int
      */
-    public function getHttpResponseCode();
+    public function getHttpResponseCode(): int;
 
     /**
      * Total transaction time in seconds for last transfer
      *
      * @return float
      */
-    public function getTotalTime();
+    public function getTotalTime(): float;
 
     /**
      * Get request error number
      *
      * @return int
      */
-    public function getErrorNumber();
+    public function getErrorNumber(): int;
 
     /**
      * Get request error message
      *
      * @return string
      */
-    public function getErrorMessage();
+    public function getErrorMessage(): string;
 
     /**
      * Get textual representation of error code
      *
      * @return string
      */
-    public function getErrorCodeMessage();
+    public function getErrorCodeMessage(): string;
 }
